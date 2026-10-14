@@ -187,7 +187,7 @@ async function onSearch(query) {
 function isOwner() {
     return Boolean(getSettings().admin);
 }
-// esc () -escap HTML special character to prevent XSS
+// esc () -escape HTML special character to prevent XSS
 // (never insert user-controlled text directly into innerHTML)
 function esc(str) {
     return String(str)

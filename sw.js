@@ -7,7 +7,7 @@ const CACHE = 'bk-v1';
 const SHELL = [
     './index.html',
     './app.js',
-    './manifest.webmaifest',
+    './manifest.webmanifest',
 ];
 
 // install: runs once when the service worker is first registered
@@ -29,7 +29,7 @@ self.addEventListener('activate', e => {
     self.clients.claim();
 });
 
-// Fetch :intesrcepts every network request the page makes.
+// Fetch :intercepts every network request the page makes.
 // Strategy: cache-first for the app shell, network-only for API calls
 self.addEventListener('fetch', e => {
     // Never cache API calls - they must always go to the server
