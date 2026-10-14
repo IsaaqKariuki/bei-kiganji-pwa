@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bei Kiganji</title>
+    <!-- Links the PWA manifest so the phone can install the app-->
+    <link rel="manifest" href="manifest.webmanifest">
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <header>
+        <h1>
+            Bei Kiganji
+            <button onclick="openSettings()"
+             style="float:right;background:none; border:none;color:#fff;font-size:20px;cursor:pointer"
+             aria-label="Settings">⚙️</button>
+        </h1>
+        <input id="searchInput" type="Search"
+        placeholder="Search for products..."
+        autocomplete="off"
+        oninput="onSearch(this.value)">
+    </header>
+
+    <div id="syncBar"> Loading...</div>
+
+    <div id="reults">
+        <div class="empty">Type a product name to search.</div>
+    </div>
+    
+    <div id="settings" onclick="closeSettings(event)">
+        <div id="settings-box">
+            <h2>⚙️ Settings</h2>
+
+            <label>Backend URL (your Render Link)</label>
+            <input id="cfgUrl" type="url" placeholder="https://your-app.onrender.com">
+
+            <label>Share token (leave empty if you are the admin)</label>
+            <input id="cfgToken" type="text" placeholder="staff share token">
+
+            <label> Admin key (owner only - keep secret!)</label>
+            <input id="cfgAdmin" type="password" placeholder="your ADMIN_KEY">
+
+            <div style="display:flex;gap:10px;margin-top:4px">
+                <button class="btn btn-primary" onclick="saveSettings()">Save & sync</button>
+                <button class="btn btn-ghost" onclick="closeSettings()">Cancel</button>
+            </div>
+        </div>
+    </div>
+ <script src="app.js"></script>   
+</body>
+</html>
