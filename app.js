@@ -78,7 +78,7 @@ async function upsertProducts(products) {
 // We store the timestamp of the last successful sync in localStorage
 // 0 means "never synced" - give me everything
 function getLastSync() {
-    return localStorage.getItem('bk_lastSync') || '0';
+    return localStorage.getItem('bk_lastSync') || '1970-01-01T00:00:00.000Z';
 }
 function setLastSync(ts) {
     localStorage.setItem('bk_lastSync', ts);
@@ -136,7 +136,7 @@ function fmt(ts) {
     if (!ts || ts === '0') return 'never';
     return new Date(ts).toLocaleString('en-KE', {
         weekday: 'short', day: 'numeric',month: 'short',
-        hour: '2-digit', minutes: '2-digit'
+        hour: '2-digit', minute: '2-digit'
     });
 }
 
@@ -169,7 +169,7 @@ async function onSearch(query) {
      }
 
      // Build cards for each matching product
-     document.getElementById('result').innerHTML = hits.map(p =>`
+     document.getElementById('results').innerHTML = hits.map(p =>`
         <div class="card">
             <div>
                 <div class="card-name">${esc(p.name)}</div>
@@ -213,7 +213,3 @@ setInterval(syncNow, 60_000);
 if ('serviceWorker' in navigator) {
     navigator.serviceWorker.register('./sw.js').catch(console.error);
 }
-
-
-// Start the app
-openDB().then(() => syncNow());
