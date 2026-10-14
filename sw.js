@@ -14,7 +14,7 @@ const SHELL = [
 // we pre-cache the app shell files.
 self.addEventListener('install', e => {
     e.waitUntil(
-        caches.open(CACHE).then(c => c.addALL(SHELL))
+        caches.open(CACHE).then(c => cache.addALL([SHELL]))
     );
     self.skipWaiting ();// activate immediately
 });
