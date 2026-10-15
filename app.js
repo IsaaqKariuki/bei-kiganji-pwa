@@ -266,7 +266,7 @@ async function createShareLink() {
     if (!admin) { result.textContent = 'Admin key not set.'; return;}
 
     try {
-        const res =await fetch(`${url}/api/share-links`, {
+        const res = await fetch(`${url}/api/share-links`, {
             method: 'POST',
             headers: { 'x-admin-key': admin, 'Content-Type': 'application/json'},
             body:JSON.stringify({ label }),
@@ -276,7 +276,7 @@ async function createShareLink() {
 
         const shareUrl = `${window.location.origin}${window.location.pathname}?token=${data.token}`;
         result.innerHTML = `Token: <strong> ${data.token}</strong><br>
-            Share this URL:<br><a href="${shareUrl} target="_blank">${shareUrl}</a>`;
+            Share this URL:<br><a href="${shareUrl}" target="_blank">${shareUrl}</a>`;
         loadShareLinks();
     } catch (err) {
         result.textContent = `${err.message}`;
