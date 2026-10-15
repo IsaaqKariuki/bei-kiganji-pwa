@@ -27,6 +27,7 @@ function saveSettings () {
     localStorage.setItem('bk_token', document.getElementById('cfgToken').value.trim());
     localStorage.setItem('bk_admin', document.getElementById('cfgAdmin').value.trim());
     closeSettings();
+    showAdminPanel();
     syncNow(); // immediately pull latest products
 }
 
@@ -203,9 +204,129 @@ function num(n) {
         ? '-'
         : Number(n).toLocaleString('en-KE', { minimumFractionDigits: 2 });
 }
+// allProducts () -returns every non-deleted product from the IndexedDB
+async function allProducts() {
+    const db = await openDB();
+    return new Promise((resolve, reject) => {
+        const tx = db.transaction(STORE, 'readonly');
+        const store = tx.objectStore(STORE);
+        const req = store.getAll();
+        req.onsuccess = () => resolve(req.result.filter(p => !p.is_deleted));
+        req.onerror = (e) => reject(e.target.error);
+    });
+}
+
+// ADMIN PANEL
+function showAdminPanel() {
+    const panel = document.getElementById('adminPanel');
+    if (isOwner()) {
+        panel.style.display = 'block';
+        loadShareLinks();
+    } else {
+        panel.style.display = 'none';
+    }
+}
+
+async function uploadCSV() {
+    const { url, admin } = getSettings();
+    const file = document.getElementById('csvFile').files[0];
+    const status = document.getElementById('csvStatus');
+
+    if (!file) { status.textContent = ' Choose a CSV file first.'; return; }
+    if (!admin) { status.textContent = 'The ADMIN key has not been set in settings.'; return; }
+
+    status.textContent = 'Uploading... ';
+
+    const  form = new FormData();
+    form.append('file', file);
+
+    try {
+        const res = await fetch (`${url}/api/products/upload`,{
+            method: 'POST',
+            headers: { 'x-admin-key': admin},
+            body: form,
+        });
+
+        const data = await res.json();
+        if (!res.ok) throw new Error (data.error || res.status);
+        status.textContent = `Inserted ${data.inserted} products (${data.skipped} skipped). Syncing...`;
+        // reset the lastSync so the new products come down
+        localStorage.removeItem('bk_lastSync');
+        await syncNow();
+    } catch (err) { 
+        status.textContent =  `${err.message}`;
+    }
+}
+
+async function createShareLink() {
+    const { url, admin } = getSettings();
+    const label = document.getElementById('shareLabel').value.trim();
+    const result = document.getElementById('shareResult');
+
+    if (!admin) { result.textContent = 'Admin key not set.'; return;}
+
+    try {
+        const res =await fetch(`${url}/api/share-links`, {
+            method: 'POST',
+            headers: { 'x-admin-key': admin, 'Content-Type': 'application/json'},
+            body:JSON.stringify({ label }),
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || res.status);
+
+        const shareUrl = `${window.location.origin}${window.location.pathname}?token=${data.token}`;
+        result.innerHTML = `Token: <strong> ${data.token}</strong><br>
+            Share this URL:<br><a href="${shareUrl} target="_blank">${shareUrl}</a>`;
+        loadShareLinks();
+    } catch (err) {
+        result.textContent = `${err.message}`;
+    }
+}
+
+async function loadShareLinks() {
+    const { url, admin } = getSettings();
+    const list = document.getElementById('shareList');
+    if (!admin || !url) return;
+
+    try {
+        const res = await fetch (`${url}/api/share-links`,{
+            headers: {'x-admin-key': admin },
+        });
+        const data = await res.json();
+        if (!res.ok || !Array.isArray(data)) return;
+
+        if (data.length === 0) {
+            list.innerHTML = '<p style="font-size:13px;color:#6B7280">No share links yet.</p>';
+            return;
+        }
+
+        list.innerHTML = '<strong style="font-size:13px">Existing links</strong>' +
+            data.map(l => `
+                <div class="card" style="flex-direction:column;align-items:flex-start;gap:4px;margin-top:8px;font-size:13px">
+                    <span>${esc (l.label || '(no label)')} -<code> ${l.token}</code></span>
+                    <span style="color:${l.is_revoked ? '#DC2626' : '#16A34A'}">${l.is_revoked ? 'Revoked' : 'Active'}</span>
+                    ${!l.is_revoked ? `<button class="btn btn-ghost" style="font-size:12px;padding:4px 10px"
+                        onclick="revokeLink('${l.token}') ">Revoke</button>` : ''} 
+                </div>`).join('');
+    }catch (e) {/* Offline*/}
+}
+
+
+async function revokeLink(token) {
+    const { url, admin } = getSettings();
+    if (!confirm ('Revoke this link? Staff using it will lose access.')) return;
+    try {
+        const res = await fetch (`${url}/api/share-links/${token}`,{
+            method: 'DELETE',
+            headers: { 'x-admin-key': admin },
+        });
+        if (res.ok) loadShareLinks();
+    }catch (e) { alert('Could not revoke - are you offline?');}
+}
 
 // STARTUP
 // When the page loads: sync immediately, then sync every 60 seconds
+showAdminPanel();
 syncNow();
 setInterval(syncNow, 60_000);
 
