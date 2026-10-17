@@ -268,11 +268,19 @@ async function createShareLink() {
     if (!admin) { result.textContent = 'Admin key not set.'; return;}
 
     try {
-        const res = await fetch(`${url}/api/share-links`, {
+        let res = await fetch(`${url}/api/share-links`, {
             method: 'POST',
             headers: { 'x-admin-key': admin, 'Content-Type': 'application/json'},
             body:JSON.stringify({ label }),
         });
+        // Fallback to /api/share if Render has not finished deploying /share-links
+        if (res.status === 404) {
+            res = await fetch(`${url}/api/share`, {
+                method: 'POST',
+                headers: { 'x-admin-key': admin, 'Content-Type': 'application/json'},
+                body:JSON.stringify({ label }),
+            });
+        }
         const data = await res.json().catch(() => ({}));
         if (!res.ok) throw new Error(data.error || res.status);
 
@@ -293,10 +301,18 @@ async function loadShareLinks() {
     if (!admin || !url) return;
 
     try {
-        const res = await fetch (`${url}/api/share-links`,{
+        let res = await fetch (`${url}/api/share-links`,{
             headers: {'x-admin-key': admin },
         });
-        const data = await res.json();
+        if (res.status === 404) {
+            res = await fetch (`${url}/api/share`,{
+                headers: {'x-admin-key': admin },
+            });
+        }
+        let data = await res.json().catch(() => null);
+        if (data && data.links && Array.isArray(data.links)) {
+            data = data.links;
+        }
         if (!res.ok || !Array.isArray(data)) return;
 
         if (data.length === 0) {
@@ -320,10 +336,16 @@ async function revokeLink(token) {
     const { url, admin } = getSettings();
     if (!confirm ('Revoke this link? Staff using it will lose access.')) return;
     try {
-        const res = await fetch (`${url}/api/share-links/${token}`,{
+        let res = await fetch (`${url}/api/share-links/${token}`,{
             method: 'DELETE',
             headers: { 'x-admin-key': admin },
         });
+        if (res.status === 404) {
+            res = await fetch (`${url}/api/share/${token}`,{
+                method: 'DELETE',
+                headers: { 'x-admin-key': admin },
+            });
+        }
         if (res.ok) loadShareLinks();
     }catch (e) { alert('Could not revoke - are you offline?');}
 }
