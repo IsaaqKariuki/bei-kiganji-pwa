@@ -287,11 +287,81 @@ async function createShareLink() {
         const shareUrl = url
             ? `${window.location.origin}${window.location.pathname}?token=${data.token}&url=${encodeURIComponent(url)}`
             : `${window.location.origin}${window.location.pathname}?token=${data.token}`;
-        result.innerHTML = `Token: <strong> ${data.token}</strong><br>
-            Share this URL:<br><a href="${shareUrl}" target="_blank">${shareUrl}</a>`;
+        
+        result.innerHTML = `
+            <div style="margin-top:10px;padding:12px;background:#F9FAFB;border:1px solid #E5E7EB;border-radius:8px;box-sizing:border-box">
+                <div style="margin-bottom:6px">Token: <strong>${esc(data.token)}</strong></div>
+                <div style="font-size:12px;color:#4B5563;word-break:break-all;margin-bottom:10px">
+                    <a href="${esc(shareUrl)}" target="_blank">${esc(shareUrl)}</a>
+                </div>
+                <div style="display:flex;gap:8px;flex-wrap:wrap">
+                    <button class="btn btn-primary" style="font-size:13px;padding:7px 14px"
+                        data-url="${esc(shareUrl)}" onclick="copyShareUrl(this.dataset.url, this)">📋 Copy Link</button>
+                    ${navigator.share ? `<button class="btn btn-ghost" style="font-size:13px;padding:7px 14px"
+                        data-url="${esc(shareUrl)}" data-label="${esc(label || 'Bei Kiganjani')}"
+                        onclick="shareNative(this.dataset.url, this.dataset.label)">↗️ Share</button>` : ''}
+                </div>
+            </div>`;
+        
+        // Auto-copy to clipboard immediately upon generation
+        copyShareUrl(shareUrl, null);
+
         loadShareLinks();
     } catch (err) {
         result.textContent = `${err.message}`;
+    }
+}
+
+async function copyShareUrl(text, btn) {
+    let success = false;
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+        try {
+            await navigator.clipboard.writeText(text);
+            success = true;
+        } catch (e) {
+            success = fallbackCopy(text);
+        }
+    } else {
+        success = fallbackCopy(text);
+    }
+
+    if (btn) {
+        const orig = btn.innerHTML;
+        btn.innerHTML = success ? '✅ Copied!' : '❌ Copy failed';
+        setTimeout(() => { btn.innerHTML = orig; }, 2000);
+    }
+}
+
+function fallbackCopy(text) {
+    try {
+        const ta = document.createElement('textarea');
+        ta.value = text;
+        ta.style.position = 'fixed';
+        ta.style.top = '0';
+        ta.style.left = '0';
+        ta.style.opacity = '0';
+        document.body.appendChild(ta);
+        ta.focus();
+        ta.select();
+        const ok = document.execCommand('copy');
+        document.body.removeChild(ta);
+        return ok;
+    } catch {
+        return false;
+    }
+}
+
+async function shareNative(shareUrl, label) {
+    if (navigator.share) {
+        try {
+            await navigator.share({
+                title: label || 'Bei Kiganjani',
+                text: 'Access Bei Kiganjani shop prices:',
+                url: shareUrl,
+            });
+        } catch (e) {
+            // User cancelled share
+        }
     }
 }
 
@@ -321,13 +391,29 @@ async function loadShareLinks() {
         }
 
         list.innerHTML = '<strong style="font-size:13px">Existing links</strong>' +
-            data.map(l => `
-                <div class="card" style="flex-direction:column;align-items:flex-start;gap:4px;margin-top:8px;font-size:13px">
-                    <span>${esc (l.label || '(no label)')} -<code> ${l.token}</code></span>
-                    <span style="color:${l.is_revoked ? '#DC2626' : '#16A34A'}">${l.is_revoked ? 'Revoked' : 'Active'}</span>
-                    ${!l.is_revoked ? `<button class="btn btn-ghost" style="font-size:12px;padding:4px 10px"
-                        onclick="revokeLink('${l.token}') ">Revoke</button>` : ''} 
-                </div>`).join('');
+            data.map(l => {
+                const linkUrl = url
+                    ? `${window.location.origin}${window.location.pathname}?token=${l.token}&url=${encodeURIComponent(url)}`
+                    : `${window.location.origin}${window.location.pathname}?token=${l.token}`;
+                return `
+                <div class="card" style="flex-direction:column;align-items:flex-start;gap:6px;margin-top:8px;font-size:13px">
+                    <div style="display:flex;justify-content:space-between;width:100%;align-items:center">
+                        <strong>${esc(l.label || '(no label)')}</strong>
+                        <span style="color:${l.is_revoked ? '#DC2626' : '#16A34A'};font-weight:600">${l.is_revoked ? 'Revoked' : 'Active'}</span>
+                    </div>
+                    <div><code>${esc(l.token)}</code></div>
+                    ${!l.is_revoked ? `
+                        <div style="display:flex;gap:6px;margin-top:4px;flex-wrap:wrap">
+                            <button class="btn btn-ghost" style="font-size:12px;padding:5px 10px"
+                                data-url="${esc(linkUrl)}" onclick="copyShareUrl(this.dataset.url, this)">📋 Copy Link</button>
+                            ${navigator.share ? `<button class="btn btn-ghost" style="font-size:12px;padding:5px 10px"
+                                data-url="${esc(linkUrl)}" data-label="${esc(l.label || 'Bei Kiganjani')}"
+                                onclick="shareNative(this.dataset.url, this.dataset.label)">↗️ Share</button>` : ''}
+                            <button class="btn btn-ghost" style="font-size:12px;padding:5px 10px;color:#DC2626"
+                                onclick="revokeLink('${l.token}')">Revoke</button>
+                        </div>` : ''}
+                </div>`;
+            }).join('');
     }catch (e) {/* Offline*/}
 }
 
