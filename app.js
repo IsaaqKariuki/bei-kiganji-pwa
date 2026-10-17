@@ -23,7 +23,9 @@ if (!e || e.target.id === 'settings'){
 }
 
 function saveSettings () {
-    localStorage.setItem('bk_url', document.getElementById('cfgUrl').value.trim());
+    const rawUrl = document.getElementById('cfgUrl').value.trim();
+    const cleanUrl = rawUrl.replace(/\/+$/, '');
+    localStorage.setItem('bk_url', cleanUrl);
     localStorage.setItem('bk_token', document.getElementById('cfgToken').value.trim());
     localStorage.setItem('bk_admin', document.getElementById('cfgAdmin').value.trim());
     closeSettings();
@@ -247,7 +249,7 @@ async function uploadCSV() {
             body: form,
         });
 
-        const data = await res.json();
+        const data = await res.json().catch(() => ({}));
         if (!res.ok) throw new Error (data.error || res.status);
         status.textContent = `Inserted ${data.inserted} products (${data.skipped} skipped). Syncing...`;
         // reset the lastSync so the new products come down
@@ -271,10 +273,12 @@ async function createShareLink() {
             headers: { 'x-admin-key': admin, 'Content-Type': 'application/json'},
             body:JSON.stringify({ label }),
         });
-        const data = await res.json();
+        const data = await res.json().catch(() => ({}));
         if (!res.ok) throw new Error(data.error || res.status);
 
-        const shareUrl = `${window.location.origin}${window.location.pathname}?token=${data.token}`;
+        const shareUrl = url
+            ? `${window.location.origin}${window.location.pathname}?token=${data.token}&url=${encodeURIComponent(url)}`
+            : `${window.location.origin}${window.location.pathname}?token=${data.token}`;
         result.innerHTML = `Token: <strong> ${data.token}</strong><br>
             Share this URL:<br><a href="${shareUrl}" target="_blank">${shareUrl}</a>`;
         loadShareLinks();
@@ -325,6 +329,13 @@ async function revokeLink(token) {
 }
 
 // STARTUP
+// Auto-import token or backend URL if opened via a share link
+const urlParams = new URLSearchParams(window.location.search);
+const sharedToken = urlParams.get('token');
+const sharedUrl = urlParams.get('url');
+if (sharedToken) localStorage.setItem('bk_token', sharedToken.trim());
+if (sharedUrl) localStorage.setItem('bk_url', sharedUrl.trim().replace(/\/+$/, ''));
+
 // When the page loads: sync immediately, then sync every 60 seconds
 showAdminPanel();
 syncNow();

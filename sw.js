@@ -1,11 +1,13 @@
 // Include the version number
 // When an update is made , add the version number to clear the old  cache
-const CACHE = 'bk-v1';
+const CACHE = 'bk-v2';
 
 // Files that make up the app shell - the UI without any data
 // we cache these so the app loads instantly even offline
 const SHELL = [
+    './',
     './index.html',
+    './styles.css',
     './app.js',
     './manifest.webmanifest',
 ];
