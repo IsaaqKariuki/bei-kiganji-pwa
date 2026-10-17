@@ -128,7 +128,7 @@ async function syncNow() {
         );
 
         const q = document.getElementById('searchInput').value;
-        if (q) onSearch(q);
+        onSearch(q);
     } catch (err) {
         setSyncBar(`📵 Offline - last sync ${fmt(getLastSync())}`);
     }
@@ -147,43 +147,50 @@ function setSyncBar(msg) {
     document.getElementById('syncBar').textContent = msg;
 }
 
-// SEARCH
-async function onSearch(query) {
-    const q = query.trim().toLowerCase();
+// SEARCH & DISPLAY PRODUCTS
+async function onSearch(query = '') {
+    const q = (query || '').trim().toLowerCase();
     const all = await allProducts(); // get all local products from indexedDB
 
-    if (!q) {
-        // Empty search box - show placeholder
-        document.getElementById('results').innerHTML=
-        '<div class="empty">Type a product name to search.</div>';
+    const hits = q
+        ? all.filter(p =>
+            (p.name || '').toLowerCase().includes(q) ||
+            (p.category && p.category.toLowerCase().includes(q))
+          )
+        : all;
+
+    renderProductList(hits, Boolean(q), query);
+}
+
+function renderProductList(items, isSearch, query = '') {
+    const container = document.getElementById('results');
+    if (!items || items.length === 0) {
+        if (isSearch) {
+            container.innerHTML = `<div class="empty">No products found for "${esc(query)}".<br>Try a different spelling.</div>`;
+        } else {
+            container.innerHTML = `<div class="empty">📦 No products available yet.<br><small style="color:#6B7280">Upload a CSV or wait for sync to finish.</small></div>`;
+        }
         return;
     }
 
-    // Filter:keep products whose name or category includes the quey
-    const hits = all.filter(p =>
-        p.name.toLowerCase().includes(q) ||
-        (p.category && p.category.toLowerCase().includes(q))
-     );
+    const countHeader = `<div style="font-size:12px;color:#6B7280;margin-bottom:2px;font-weight:500">
+        ${isSearch ? `Found ${items.length} product(s) matching "${esc(query)}"` : `All Products (${items.length})`}
+    </div>`;
 
-     if (hits.length === 0) {
-        document.getElementById('results').innerHTML =
-        `<div class="empty"> No products found for "${q}".<br> Try a different spelling.</div>`;
-        return;
-     }
-
-     // Build cards for each matching product
-     document.getElementById('results').innerHTML = hits.map(p =>`
+    const cardsHtml = items.map(p => `
         <div class="card">
             <div>
                 <div class="card-name">${esc(p.name)}</div>
-                <div class="card-cat">${esc(p.category || '-')}</div>
+                <div class="card-cat">${esc(p.category || '-')}${p.quantity != null ? ` • Stock: ${p.quantity}` : ''}</div>
             </div>
             <div>
                 <div class="card-price">Ksh ${num(p.retail_price)}</div>
-                ${isOwner() ? `<div class="card-entry">Cost: Ksh ${num(p.entry_price)}</div>`:''}
+                ${isOwner() ? `<div class="card-entry">Cost: Ksh ${num(p.entry_price)}</div>` : ''}
             </div>
         </div>
-        `).join('');
+    `).join('');
+
+    container.innerHTML = countHeader + cardsHtml;
 }
 
 // is Owner() - true if admin key is set (owner sees cost prices too)
@@ -206,14 +213,18 @@ function num(n) {
         ? '-'
         : Number(n).toLocaleString('en-KE', { minimumFractionDigits: 2 });
 }
-// allProducts () -returns every non-deleted product from the IndexedDB
+// allProducts () -returns every non-deleted product from the IndexedDB sorted alphabetically
 async function allProducts() {
     const db = await openDB();
     return new Promise((resolve, reject) => {
         const tx = db.transaction(STORE, 'readonly');
         const store = tx.objectStore(STORE);
         const req = store.getAll();
-        req.onsuccess = () => resolve(req.result.filter(p => !p.is_deleted));
+        req.onsuccess = () => {
+            const active = (req.result || []).filter(p => !p.is_deleted);
+            active.sort((a, b) => (a.name || '').localeCompare(b.name || '', undefined, { sensitivity: 'base' }));
+            resolve(active);
+        };
         req.onerror = (e) => reject(e.target.error);
     });
 }
@@ -444,8 +455,9 @@ const sharedUrl = urlParams.get('url');
 if (sharedToken) localStorage.setItem('bk_token', sharedToken.trim());
 if (sharedUrl) localStorage.setItem('bk_url', sharedUrl.trim().replace(/\/+$/, ''));
 
-// When the page loads: sync immediately, then sync every 60 seconds
+// When the page loads: render cached products, sync immediately, then sync every 60 seconds
 showAdminPanel();
+onSearch('');
 syncNow();
 setInterval(syncNow, 60_000);
 
