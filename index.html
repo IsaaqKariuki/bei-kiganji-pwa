@@ -1,78 +1,183 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Bei Kiganji</title>
-    <!-- Links the PWA manifest so the phone can install the app-->
-    <link rel="manifest" href="manifest.webmanifest">
-    <link rel="stylesheet" href="styles.css">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <title>Bei Kiganjani</title>
+  <!-- Links PWA manifest -->
+  <link rel="manifest" href="manifest.webmanifest">
+  <!-- Fonts matching design mockup -->
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&family=DM+Mono:wght@400;500&display=swap">
+  <link rel="stylesheet" href="styles.css">
 </head>
 <body>
-    <header>
-        <h1>
-            Bei Kiganji
-            <button onclick="openSettings()"
-             style="float:right;background:none; border:none;color:#fff;font-size:20px;cursor:pointer"
-             aria-label="Settings">⚙️</button>
-        </h1>
-        <input id="searchInput" type="Search"
-        placeholder="Search for products..."
-        autocomplete="off"
-        oninput="onSearch(this.value)">
+  <div class="app-shell">
+    
+    <!-- Top Header -->
+    <header class="app-header">
+      <div class="header-top">
+        <div class="app-name">Bei <span>Kiganjani</span></div>
+        <div class="header-actions">
+          <button class="icon-btn" onclick="openSettings()" title="Settings" aria-label="Settings">⚙️</button>
+        </div>
+      </div>
+      <div class="search-wrap">
+        <span class="search-icon">🔍</span>
+        <input class="search-input" id="searchInput" type="search" placeholder="Search products…" autocomplete="off" oninput="onSearch(this.value)">
+      </div>
     </header>
 
-    <div id="syncBar"> Loading...</div>
-
-    <div id="results">
-        <div class="empty">Loading products...</div>
+    <!-- Sync status bar -->
+    <div class="sync-bar" id="syncBarContainer">
+      <span class="sync-dot" id="syncDot"></span>
+      <span id="syncBar">Loading products...</span>
     </div>
-    <!-- Admin panel- only shown when admin key is saved-->
-    <div id="adminPanel" style="display:none;padding:16px;max-width:480px;margin:0 auto">
 
-        <h3 style="margin-bottom:12px">Admin Tools</h3>
+    <!-- Tab bar (visible for owner/admin) -->
+    <nav class="tab-bar" id="tabBar" style="display:none">
+      <button class="tab-btn active" id="tab-search" onclick="switchTab('search', this)">Search</button>
+      <button class="tab-btn" id="tab-admin" onclick="switchTab('admin', this)">Admin</button>
+      <button class="tab-btn" id="tab-links" onclick="switchTab('links', this)">Share links</button>
+    </nav>
 
-        <!-- CSV UPLOAD-->
-        <div class="card" style="flex-direction:column;align-items:flex-start;gap:8px;margin-bottom:12px">
-            <strong>Upload price list(csv)</strong>
-            <input id="csvFile" type="file" accept=".csv">
-            <button class="btn btn-primary" onclick="uploadCSV()">Upload</button>
-            <div id="csvStatus" style="font-size:13px;color:#6B7280"></div>
+    <!-- Scrollable content -->
+    <main class="content">
+
+      <!-- View 1: Search View (Staff & Owner) -->
+      <div class="view active" id="view-search">
+        <div id="searchResults">
+          <div class="empty-state">
+            <div class="empty-icon">📦</div>
+            <h3>Loading products…</h3>
+            <p>Products will appear here as soon as local data is loaded.</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- View 2: Admin View (Owner Only) -->
+      <div class="view" id="view-admin">
+        <!-- Stats strip -->
+        <div class="stats-strip">
+          <div class="stat-tile">
+            <div class="stat-value" id="statTotal" style="color:var(--accent)">0</div>
+            <div class="stat-label">Products</div>
+          </div>
+          <div class="stat-tile">
+            <div class="stat-value" id="statLow" style="color:var(--warn)">0</div>
+            <div class="stat-label">Low stock</div>
+          </div>
+          <div class="stat-tile">
+            <div class="stat-value" id="statCats">0</div>
+            <div class="stat-label">Categories</div>
+          </div>
         </div>
 
-        <!-- Share Links-->
-        <div class="card" style="flex-direction:column;align-items:flex-start;gap:8px">
-            <strong>Create a share Link</strong>
-            <input id="shareLabel" type="text" placeholder="Label e.g Isaaq's Phone"
-                style="width:100%;padding:8px;border:1px solid #E2E6ED;border-radius:6px;font-size:14px">
-            <button class="btn btn-primary" onclick="createShareLink()">Generate link</button>
-            <div id="shareResult" style="font-size:13px;word-break:break-all"></div>
-        </div> 
-
-        <!-- Existing share links -->
-        <div id="shareList" style="margin-top:12px"></div>
-    </div>
-
-    
-    <div id="settings" onclick="closeSettings(event)">
-        <div id="settings-box">
-            <h2>⚙️ Settings</h2>
-
-            <label>Backend URL (your Render Link)</label>
-            <input id="cfgUrl" type="url" placeholder="https://your-app.onrender.com">
-
-            <label>Share token (leave empty if you are the admin)</label>
-            <input id="cfgToken" type="text" placeholder="staff share token">
-
-            <label> Admin key (owner only - keep secret!)</label>
-            <input id="cfgAdmin" type="password" placeholder="your ADMIN_KEY">
-
-            <div style="display:flex;gap:10px;margin-top:4px">
-                <button class="btn btn-primary" onclick="saveSettings()">Save & sync</button>
-                <button class="btn btn-ghost" onclick="closeSettings()">Cancel</button>
-            </div>
+        <!-- Upload CSV -->
+        <p class="section-head">Upload price list</p>
+        <div class="admin-card">
+          <h4><span class="ico">📄</span> CSV import</h4>
+          <div class="file-zone" id="fileDropZone" onclick="document.getElementById('csvFile').click()">
+            <div style="font-size:24px;margin-bottom:6px">⬆️</div>
+            Drag a CSV here or <strong>choose file</strong><br>
+            <span style="font-size:11px;margin-top:4px;display:block">Supports: name, category, qty, buying price, selling price</span>
+          </div>
+          <input type="file" id="csvFile" accept=".csv" style="display:none" onchange="onFileSelected(this)">
+          <button class="btn-primary" onclick="uploadCSV()">Upload</button>
+          <div class="status-line" id="csvStatus"></div>
         </div>
+
+        <!-- Manage products list -->
+        <p class="section-head">Manage products</p>
+        <div id="adminProductList"></div>
+      </div>
+
+      <!-- View 3: Share Links View (Owner Only) -->
+      <div class="view" id="view-links">
+        <p class="section-head">Create share link</p>
+        <div class="admin-card">
+          <h4><span class="ico">🔗</span> New link</h4>
+          <div class="field-label">Label</div>
+          <input class="field-input" placeholder="e.g. John's phone" id="shareLabel">
+          <button class="btn-primary" onclick="createShareLink()">Generate link</button>
+          <div id="shareResult" class="status-line"></div>
+        </div>
+
+        <p class="section-head">Active links</p>
+        <div class="admin-card" style="padding:6px 14px">
+          <div id="shareList"></div>
+        </div>
+      </div>
+
+    </main>
+
+    <!-- Delete Confirmation Modal Sheet -->
+    <div class="modal-overlay" id="deleteModal" onclick="closeDeleteOnBackdrop(event)">
+      <div class="modal-sheet">
+        <h3>Delete product?</h3>
+        <p id="deleteModalText">This removes the product from the price list. Staff won't see it. You can restore it any time.</p>
+        <div class="modal-actions">
+          <button class="btn-cancel" onclick="closeDelete()">Cancel</button>
+          <button class="btn-confirm-delete" onclick="confirmDelete()">Delete</button>
+        </div>
+      </div>
     </div>
- <script src="app.js"></script>   
+
+    <!-- Edit Product Modal Dialog -->
+    <div class="modal-overlay" id="editModal" onclick="closeEditOnBackdrop(event)">
+      <div class="dialog-box">
+        <h2>✏️ Edit Product</h2>
+        <input type="hidden" id="editProdId">
+        <div class="field-label">Product Name</div>
+        <input class="field-input" id="editName" type="text" placeholder="Name">
+        
+        <div class="field-label">Category</div>
+        <input class="field-input" id="editCategory" type="text" placeholder="Category">
+        
+        <div style="display:flex;gap:8px">
+          <div style="flex:1">
+            <div class="field-label">Stock Qty</div>
+            <input class="field-input" id="editQuantity" type="number" placeholder="0">
+          </div>
+          <div style="flex:1">
+            <div class="field-label">Cost (Ksh)</div>
+            <input class="field-input" id="editEntryPrice" type="number" step="0.01" placeholder="Cost">
+          </div>
+        </div>
+
+        <div class="field-label">Retail Price (Ksh)</div>
+        <input class="field-input" id="editRetailPrice" type="number" step="0.01" placeholder="Selling price">
+
+        <div style="display:flex;gap:10px;margin-top:10px">
+          <button class="btn-primary" style="flex:1" onclick="saveProductEdit()">Save Changes</button>
+          <button class="btn-ghost" style="flex:1" onclick="closeEdit()">Cancel</button>
+        </div>
+        <div class="status-line" id="editStatus"></div>
+      </div>
+    </div>
+
+    <!-- Settings Dialog -->
+    <div class="modal-overlay" id="settings" onclick="closeSettings(event)">
+      <div class="dialog-box">
+        <h2>⚙️ Settings</h2>
+
+        <div class="field-label">Backend URL (Render Link)</div>
+        <input class="field-input" id="cfgUrl" type="url" placeholder="https://bei-kiganji-backend.onrender.com">
+
+        <div class="field-label">Share token (for staff)</div>
+        <input class="field-input" id="cfgToken" type="text" placeholder="staff share token">
+
+        <div class="field-label">Admin key (owner only)</div>
+        <input class="field-input" id="cfgAdmin" type="password" placeholder="your ADMIN_KEY">
+
+        <div style="display:flex;gap:10px;margin-top:12px">
+          <button class="btn-primary" style="flex:1" onclick="saveSettings()">Save & Sync</button>
+          <button class="btn-ghost" style="flex:1" onclick="closeSettings()">Cancel</button>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <script src="app.js"></script>
 </body>
 </html>
